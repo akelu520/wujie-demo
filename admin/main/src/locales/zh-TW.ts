@@ -36,6 +36,10 @@ export default {
     operations: '運營系統',
     campaigns: '活動管理',
     reports: '資料報表',
+    notifications: '訊息通知',
+    settings: '系統設定',
+    help: '說明文件',
+    search: '搜尋',
   },
   lang: {
     zhCN: '简体中文',

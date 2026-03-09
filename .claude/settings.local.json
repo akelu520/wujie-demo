@@ -11,7 +11,8 @@
       "Bash(for app in securities cms crm service operations)",
       "Bash(do)",
       "Read(//Users/lb/wujie-demo/admin/apps/**)",
-      "Bash(done)"
+      "Bash(done)",
+      "Bash(node -e \"const p = require\\(''/Users/lb/wujie-demo/admin/main/node_modules/lucide-react''\\); console.log\\(''PanelLeftOpen:'', typeof p.PanelLeftOpen, ''  PanelLeftClose:'', typeof p.PanelLeftClose\\)\")"
     ]
   }
 }

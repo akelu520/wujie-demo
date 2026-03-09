@@ -36,6 +36,10 @@ export default {
     operations: 'Operations',
     campaigns: 'Campaigns',
     reports: 'Reports',
+    notifications: 'Notifications',
+    settings: 'Settings',
+    help: 'Help Docs',
+    search: 'Search',
   },
   lang: {
     zhCN: '简体中文',
