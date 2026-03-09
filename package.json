@@ -1,0 +1,16 @@
+{
+  "name": "wujie-demo",
+  "private": true,
+  "workspaces": [
+    "main-app",
+    "sub-app"
+  ],
+  "scripts": {
+    "dev:main": "npm run dev --workspace=main-app",
+    "dev:sub": "npm run dev --workspace=sub-app",
+    "dev": "npm run dev --workspace=main-app & npm run dev --workspace=sub-app",
+    "build:main": "npm run build --workspace=main-app",
+    "build:sub": "npm run build --workspace=sub-app",
+    "build": "npm run build --workspace=main-app && npm run build --workspace=sub-app"
+  }
+}

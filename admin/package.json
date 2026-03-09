@@ -1,0 +1,22 @@
+{
+  "name": "admin",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:main\" \"npm run dev:basic\" \"npm run dev:securities\" \"npm run dev:cms\" \"npm run dev:crm\" \"npm run dev:service\" \"npm run dev:operations\"",
+    "dev:backend":    "cd backend && npm run dev",
+    "dev:main":       "cd main && npm run dev",
+    "dev:basic":      "cd apps/basic && npm run dev",
+    "dev:securities": "cd apps/securities && npm run dev",
+    "dev:cms":        "cd apps/cms && npm run dev",
+    "dev:crm":        "cd apps/crm && npm run dev",
+    "dev:service":    "cd apps/service && npm run dev",
+    "dev:operations": "cd apps/operations && npm run dev",
+    "seed": "cd backend && npm run seed",
+    "install:all": "cd backend && npm install && cd ../main && npm install && cd ../apps/basic && npm install && cd ../securities && npm install && cd ../cms && npm install && cd ../crm && npm install && cd ../service && npm install && cd ../operations && npm install",
+    "test:backend": "cd backend && npm test",
+    "test:basic":   "cd apps/basic && npm test"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
