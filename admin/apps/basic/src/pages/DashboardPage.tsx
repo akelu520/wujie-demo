@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Users, Shield, Activity, TrendingUp } from 'lucide-react';
 import { statsApi } from '@/api/index.ts';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
@@ -31,46 +32,44 @@ function StatCard({ icon: Icon, label, value }: StatCardProps) {
 }
 
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const [stats, setStats] = useState<Stats | null>(null);
   const [logs, setLogs] = useState<LoginLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([statsApi.summary(), statsApi.loginLogs(10)])
-      .then(([s, l]) => {
-        setStats(s.data);
-        setLogs(l.data);
-      })
+      .then(([s, l]) => { setStats(s.data); setLogs(l.data); })
       .finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
-    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">加载中...</div>
+    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">{t('dashboard.loading')}</div>
   );
 
   return (
     <div className="p-8 space-y-6">
-      <h1 className="text-xl font-semibold">仪表盘</h1>
+      <h1 className="text-xl font-semibold">{t('dashboard.title')}</h1>
 
       <div className="grid grid-cols-4 gap-4">
-        <StatCard icon={Users} label="用户总数" value={stats?.totalUsers ?? 0} />
-        <StatCard icon={Activity} label="活跃用户" value={stats?.activeUsers ?? 0} />
-        <StatCard icon={TrendingUp} label="今日登录" value={stats?.todayLogins ?? 0} />
-        <StatCard icon={Shield} label="角色数量" value={stats?.totalRoles ?? 0} />
+        <StatCard icon={Users}      label={t('dashboard.totalUsers')}  value={stats?.totalUsers ?? 0} />
+        <StatCard icon={Activity}   label={t('dashboard.activeUsers')} value={stats?.activeUsers ?? 0} />
+        <StatCard icon={TrendingUp} label={t('dashboard.todayLogins')} value={stats?.todayLogins ?? 0} />
+        <StatCard icon={Shield}     label={t('dashboard.totalRoles')}  value={stats?.totalRoles ?? 0} />
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">最近登录记录</CardTitle>
+          <CardTitle className="text-base">{t('dashboard.recentLogins')}</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>用户名</TableHead>
-                <TableHead>IP</TableHead>
-                <TableHead>状态</TableHead>
-                <TableHead>时间</TableHead>
+                <TableHead>{t('dashboard.username')}</TableHead>
+                <TableHead>{t('dashboard.ip')}</TableHead>
+                <TableHead>{t('dashboard.status')}</TableHead>
+                <TableHead>{t('dashboard.time')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,7 +79,7 @@ export default function DashboardPage() {
                   <TableCell className="text-muted-foreground">{log.ip}</TableCell>
                   <TableCell>
                     <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
-                      {log.status === 'success' ? '成功' : '失败'}
+                      {log.status === 'success' ? t('dashboard.success') : t('dashboard.failed')}
                     </Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">{log.created_at}</TableCell>
@@ -88,7 +87,7 @@ export default function DashboardPage() {
               ))}
               {logs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">暂无记录</TableCell>
+                  <TableCell colSpan={4} className="py-10 text-center text-muted-foreground">{t('dashboard.noRecords')}</TableCell>
                 </TableRow>
               )}
             </TableBody>

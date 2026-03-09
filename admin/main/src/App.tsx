@@ -18,7 +18,10 @@ const microApps: Parameters<typeof registerMicroApps>[0] = [
 ];
 
 // 全局状态初始化
-export const globalActions = initGlobalState({ user: null });
+export const globalActions = initGlobalState({
+  user: null,
+  language: localStorage.getItem('admin-language') ?? 'zh-CN',
+});
 
 function MicroAppContainer() {
   const { user } = useAuth();
@@ -46,6 +49,17 @@ function MicroAppContainer() {
   useEffect(() => {
     globalActions.setGlobalState({ user });
   }, [user]);
+
+  // 语言变化时同步给子应用
+  useEffect(() => {
+    const handleLangChange = (lang: string) => {
+      globalActions.setGlobalState({ language: lang });
+    };
+    import('i18next').then(({ default: i18next }) => {
+      i18next.on('languageChanged', handleLangChange);
+      return () => { i18next.off('languageChanged', handleLangChange); };
+    });
+  }, []);
 
   return null;
 }

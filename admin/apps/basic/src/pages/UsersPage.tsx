@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { usersApi, rolesApi } from '@/api/index.ts';
 import { Plus, Pencil, Trash2, KeyRound, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
@@ -23,10 +24,11 @@ interface UserFormModalProps {
   open: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  submitLabel: string;
   error: string;
 }
 
-function UserFormModal({ title, open, onClose, onSubmit, children, error }: UserFormModalProps) {
+function UserFormModal({ title, open, onClose, onSubmit, children, submitLabel, error }: UserFormModalProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md">
@@ -36,7 +38,7 @@ function UserFormModal({ title, open, onClose, onSubmit, children, error }: User
         <div className="space-y-3 mt-2">
           {children}
           {error && <p className="text-destructive text-xs">{error}</p>}
-          <Button onClick={onSubmit} className="w-full">确认</Button>
+          <Button onClick={onSubmit} className="w-full">{submitLabel}</Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -44,6 +46,7 @@ function UserFormModal({ title, open, onClose, onSubmit, children, error }: User
 }
 
 export default function UsersPage() {
+  const { t } = useTranslation();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [total, setTotal] = useState(0);
@@ -80,28 +83,28 @@ export default function UsersPage() {
     try {
       await usersApi.create(form);
       setModal(null); fetchUsers();
-    } catch (e) { setError((e as Error).message || '操作失败'); }
+    } catch (e) { setError((e as Error).message || t('users.failed')); }
   }
 
   async function handleEdit() {
     try {
       await usersApi.update(selected!.id, form);
       setModal(null); fetchUsers();
-    } catch (e) { setError((e as Error).message || '操作失败'); }
+    } catch (e) { setError((e as Error).message || t('users.failed')); }
   }
 
   async function handleDelete(u: User) {
-    if (!confirm(`确认删除用户「${u.username}」？`)) return;
+    if (!confirm(t('users.confirmDelete', { username: u.username }))) return;
     await usersApi.delete(u.id);
     fetchUsers();
   }
 
   async function handleReset() {
-    if (!form.newPassword) { setError('请输入新密码'); return; }
+    if (!form.newPassword) { setError(t('users.enterNewPwd')); return; }
     try {
       await usersApi.resetPassword(selected!.id, form.newPassword);
       setModal(null);
-    } catch (e) { setError((e as Error).message || '操作失败'); }
+    } catch (e) { setError((e as Error).message || t('users.failed')); }
   }
 
   const totalPages = Math.ceil(total / pageSize);
@@ -109,9 +112,9 @@ export default function UsersPage() {
   return (
     <div className="p-8 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">用户管理</h1>
+        <h1 className="text-xl font-semibold">{t('users.title')}</h1>
         <Button data-testid="create-user-btn" onClick={openCreate} size="sm">
-          <Plus size={15} />新增用户
+          <Plus size={15} />{t('users.addUser')}
         </Button>
       </div>
 
@@ -120,7 +123,7 @@ export default function UsersPage() {
           <div className="relative max-w-xs">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="搜索用户名/邮箱"
+              placeholder={t('users.search')}
               value={keyword}
               onChange={(e) => { setKeyword(e.target.value); setPage(1); }}
               className="pl-9"
@@ -133,17 +136,17 @@ export default function UsersPage() {
         <Table data-testid="users-table">
           <TableHeader>
             <TableRow>
-              <TableHead>用户名</TableHead>
-              <TableHead>邮箱</TableHead>
-              <TableHead>角色</TableHead>
-              <TableHead>状态</TableHead>
-              <TableHead>创建时间</TableHead>
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead>{t('users.username') ?? 'Username'}</TableHead>
+              <TableHead>{t('users.email')}</TableHead>
+              <TableHead>{t('users.role')}</TableHead>
+              <TableHead>{t('users.status')}</TableHead>
+              <TableHead>{t('users.createdAt')}</TableHead>
+              <TableHead className="text-right">{t('users.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading && (
-              <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground">加载中...</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground">{t('users.loading')}</TableCell></TableRow>
             )}
             {!loading && users.map((u) => (
               <TableRow key={u.id}>
@@ -152,19 +155,19 @@ export default function UsersPage() {
                 <TableCell>{u.roleLabel}</TableCell>
                 <TableCell>
                   <Badge variant={u.status === 'active' ? 'default' : 'secondary'}>
-                    {u.status === 'active' ? '启用' : '禁用'}
+                    {u.status === 'active' ? t('users.enabled') : t('users.disabled')}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-muted-foreground">{(u as User & { created_at?: string }).created_at?.slice(0, 10)}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(u)} title="编辑">
+                    <Button variant="ghost" size="icon-sm" onClick={() => openEdit(u)} title={t('users.edit')}>
                       <Pencil size={14} />
                     </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => openReset(u)} title="重置密码">
+                    <Button variant="ghost" size="icon-sm" onClick={() => openReset(u)} title={t('users.resetPwd')}>
                       <KeyRound size={14} />
                     </Button>
-                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(u)} title="删除" className="text-destructive hover:text-destructive">
+                    <Button variant="ghost" size="icon-sm" onClick={() => handleDelete(u)} title={t('users.delete')} className="text-destructive hover:text-destructive">
                       <Trash2 size={14} />
                     </Button>
                   </div>
@@ -172,86 +175,86 @@ export default function UsersPage() {
               </TableRow>
             ))}
             {!loading && users.length === 0 && (
-              <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground">暂无数据</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="py-12 text-center text-muted-foreground">{t('users.noData')}</TableCell></TableRow>
             )}
           </TableBody>
         </Table>
 
         {totalPages > 1 && (
           <div className="px-4 py-3 border-t flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">共 {total} 条</span>
+            <span className="text-muted-foreground">{t('users.total', { count: total })}</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>上一页</Button>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}>{t('users.prev')}</Button>
               <span className="px-2 py-1 text-muted-foreground">{page}/{totalPages}</span>
-              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>下一页</Button>
+              <Button variant="outline" size="sm" onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}>{t('users.next')}</Button>
             </div>
           </div>
         )}
       </Card>
 
       {/* 新增弹窗 */}
-      <UserFormModal title="新增用户" open={modal === 'create'} onClose={() => setModal(null)} onSubmit={handleCreate} error={error}>
+      <UserFormModal title={t('users.addTitle')} open={modal === 'create'} onClose={() => setModal(null)} onSubmit={handleCreate} submitLabel={t('users.confirm')} error={error}>
         <div className="space-y-1.5">
-          <Label>用户名</Label>
-          <Input placeholder="用户名*" value={form.username || ''} onChange={e => setForm({...form, username: e.target.value})} />
+          <Label>{t('users.username') ?? 'Username'}</Label>
+          <Input placeholder={t('users.usernamePlaceholder')} value={form.username || ''} onChange={e => setForm({...form, username: e.target.value})} />
         </div>
         <div className="space-y-1.5">
-          <Label>邮箱</Label>
-          <Input placeholder="邮箱*" value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} />
+          <Label>{t('users.email')}</Label>
+          <Input placeholder={t('users.emailPlaceholder')} value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} />
         </div>
         <div className="space-y-1.5">
-          <Label>密码</Label>
-          <Input type="password" placeholder="密码*" value={form.password || ''} onChange={e => setForm({...form, password: e.target.value})} />
+          <Label>{t('users.password') ?? 'Password'}</Label>
+          <Input type="password" placeholder={t('users.passwordPlaceholder')} value={form.password || ''} onChange={e => setForm({...form, password: e.target.value})} />
         </div>
         <div className="space-y-1.5">
-          <Label>角色</Label>
+          <Label>{t('users.role')}</Label>
           <Select value={form.roleId || ''} onValueChange={v => setForm({...form, roleId: v})}>
-            <SelectTrigger><SelectValue placeholder="选择角色*" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t('users.selectRole')} /></SelectTrigger>
             <SelectContent>{roles.map(r => <SelectItem key={r.id} value={String(r.id)}>{r.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>状态</Label>
+          <Label>{t('users.status')}</Label>
           <Select value={form.status || 'active'} onValueChange={v => setForm({...form, status: v})}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">启用</SelectItem>
-              <SelectItem value="disabled">禁用</SelectItem>
+              <SelectItem value="active">{t('users.enabled')}</SelectItem>
+              <SelectItem value="disabled">{t('users.disabled')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </UserFormModal>
 
       {/* 编辑弹窗 */}
-      <UserFormModal title={`编辑用户：${selected?.username}`} open={modal === 'edit'} onClose={() => setModal(null)} onSubmit={handleEdit} error={error}>
+      <UserFormModal title={t('users.editTitle', { username: selected?.username })} open={modal === 'edit'} onClose={() => setModal(null)} onSubmit={handleEdit} submitLabel={t('users.confirm')} error={error}>
         <div className="space-y-1.5">
-          <Label>邮箱</Label>
-          <Input placeholder="邮箱" value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} />
+          <Label>{t('users.email')}</Label>
+          <Input placeholder={t('users.emailPlaceholder')} value={form.email || ''} onChange={e => setForm({...form, email: e.target.value})} />
         </div>
         <div className="space-y-1.5">
-          <Label>角色</Label>
+          <Label>{t('users.role')}</Label>
           <Select value={form.roleId || ''} onValueChange={v => setForm({...form, roleId: v})}>
-            <SelectTrigger><SelectValue placeholder="选择角色" /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={t('users.selectRole')} /></SelectTrigger>
             <SelectContent>{roles.map(r => <SelectItem key={r.id} value={String(r.id)}>{r.label}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label>状态</Label>
+          <Label>{t('users.status')}</Label>
           <Select value={form.status || 'active'} onValueChange={v => setForm({...form, status: v})}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="active">启用</SelectItem>
-              <SelectItem value="disabled">禁用</SelectItem>
+              <SelectItem value="active">{t('users.enabled')}</SelectItem>
+              <SelectItem value="disabled">{t('users.disabled')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </UserFormModal>
 
       {/* 重置密码弹窗 */}
-      <UserFormModal title={`重置密码：${selected?.username}`} open={modal === 'reset'} onClose={() => setModal(null)} onSubmit={handleReset} error={error}>
+      <UserFormModal title={t('users.resetTitle', { username: selected?.username })} open={modal === 'reset'} onClose={() => setModal(null)} onSubmit={handleReset} submitLabel={t('users.confirm')} error={error}>
         <div className="space-y-1.5">
-          <Label>新密码</Label>
-          <Input type="password" placeholder="至少 6 位" value={form.newPassword || ''} onChange={e => setForm({...form, newPassword: e.target.value})} />
+          <Label>{t('users.newPassword')}</Label>
+          <Input type="password" placeholder={t('users.pwdPlaceholder')} value={form.newPassword || ''} onChange={e => setForm({...form, newPassword: e.target.value})} />
         </div>
       </UserFormModal>
     </div>

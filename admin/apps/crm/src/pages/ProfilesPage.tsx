@@ -1,15 +1,17 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 
 export default function ProfilesPage() {
+  const { t } = useTranslation();
   return (
     <div className="p-8">
-      <h1 className="text-xl font-semibold mb-6">客户画像</h1>
+      <h1 className="text-xl font-semibold mb-6">{t('pages.profiles')}</h1>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">客户画像</CardTitle>
+          <CardTitle className="text-base">{t('pages.profiles')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">客户画像模块开发中，敬请期待...</p>
+          <p className="text-muted-foreground text-sm">{t('pages.wip', { name: t('pages.profiles') })}</p>
         </CardContent>
       </Card>
     </div>

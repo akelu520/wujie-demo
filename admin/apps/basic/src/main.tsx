@@ -1,12 +1,14 @@
 import ReactDOM from 'react-dom/client';
 import { renderWithQiankun, qiankunWindow } from 'vite-plugin-qiankun/dist/helper';
 import App from './App.tsx';
+import './locales';
 import './index.css';
 import type { User } from '@/types/index.ts';
 
 interface RenderProps {
   container?: HTMLElement;
   user?: User;
+  language?: string;
   [key: string]: unknown;
 }
 
@@ -14,6 +16,9 @@ let root: ReactDOM.Root | null;
 
 function render(props: RenderProps = {}) {
   const { container } = props;
+  if (props.language) {
+    import('i18next').then(({ default: i18next }) => { i18next.changeLanguage(props.language as string); });
+  }
   const mountPoint = container
     ? container.querySelector('#root')
     : document.getElementById('root');

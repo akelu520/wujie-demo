@@ -1,30 +1,27 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   LayoutDashboard, Users, Shield, TrendingUp, FileText, UserCircle,
-  Headphones, BarChart3, ChevronDown, ChevronRight, LogOut,
-  LineChart, BookOpen, Image, UserSearch, TicketIcon, Megaphone,
+  Headphones, BarChart3, ChevronRight, LogOut,
+  LineChart, BookOpen, Image, UserSearch, TicketIcon, Megaphone, Globe,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/store/auth.tsx';
-import { Button } from '@/components/ui/button.tsx';
+import { globalActions } from '@/App.tsx';
 import { cn } from '@/lib/utils.ts';
 
 interface NavChild {
   key: string;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  labelKey: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
 }
 
 interface NavGroup {
   key: string;
-  label: string;
-  icon: React.ComponentType<{ size?: number }>;
+  labelKey: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
   children: NavChild[];
-}
-
-interface MenuItemProps {
-  item: NavGroup;
-  defaultOpen?: boolean;
 }
 
 interface LayoutProps {
@@ -34,107 +31,130 @@ interface LayoutProps {
 const menuConfig: NavGroup[] = [
   {
     key: 'basic',
-    label: '基础后台',
+    labelKey: 'layout.basic',
     icon: LayoutDashboard,
     children: [
-      { key: '/basic/dashboard', label: '仪表盘', icon: LayoutDashboard },
-      { key: '/basic/users', label: '用户管理', icon: Users },
-      { key: '/basic/roles', label: '角色权限', icon: Shield },
+      { key: '/basic/dashboard', labelKey: 'layout.dashboard', icon: LayoutDashboard },
+      { key: '/basic/users',     labelKey: 'layout.users',     icon: Users },
+      { key: '/basic/roles',     labelKey: 'layout.roles',     icon: Shield },
     ],
   },
   {
     key: 'securities',
-    label: '证券后台',
+    labelKey: 'layout.securities',
     icon: TrendingUp,
     children: [
-      { key: '/securities/accounts', label: '账户管理', icon: UserCircle },
-      { key: '/securities/trades', label: '交易记录', icon: LineChart },
-      { key: '/securities/market', label: '行情数据', icon: BarChart3 },
-      { key: '/securities/risk', label: '风控管理', icon: Shield },
+      { key: '/securities/accounts', labelKey: 'layout.accounts', icon: UserCircle },
+      { key: '/securities/trades',   labelKey: 'layout.trades',   icon: LineChart },
+      { key: '/securities/market',   labelKey: 'layout.market',   icon: BarChart3 },
+      { key: '/securities/risk',     labelKey: 'layout.risk',     icon: Shield },
     ],
   },
   {
     key: 'cms',
-    label: '内容管理',
+    labelKey: 'layout.cms',
     icon: FileText,
     children: [
-      { key: '/cms/articles', label: '文章管理', icon: BookOpen },
-      { key: '/cms/categories', label: '分类管理', icon: FileText },
-      { key: '/cms/media', label: '媒体库', icon: Image },
+      { key: '/cms/articles',    labelKey: 'layout.articles',    icon: BookOpen },
+      { key: '/cms/categories',  labelKey: 'layout.categories',  icon: FileText },
+      { key: '/cms/media',       labelKey: 'layout.media',       icon: Image },
     ],
   },
   {
     key: 'crm',
-    label: '客户管理',
+    labelKey: 'layout.crm',
     icon: UserSearch,
     children: [
-      { key: '/crm/customers', label: '客户列表', icon: Users },
-      { key: '/crm/profiles', label: '客户画像', icon: UserCircle },
+      { key: '/crm/customers', labelKey: 'layout.customers', icon: Users },
+      { key: '/crm/profiles',  labelKey: 'layout.profiles',  icon: UserCircle },
     ],
   },
   {
     key: 'service',
-    label: '客服系统',
+    labelKey: 'layout.service',
     icon: Headphones,
     children: [
-      { key: '/service/tickets', label: '工单管理', icon: TicketIcon },
-      { key: '/service/agents', label: '坐席管理', icon: Headphones },
+      { key: '/service/tickets', labelKey: 'layout.tickets', icon: TicketIcon },
+      { key: '/service/agents',  labelKey: 'layout.agents',  icon: Headphones },
     ],
   },
   {
     key: 'operations',
-    label: '运营系统',
+    labelKey: 'layout.operations',
     icon: Megaphone,
     children: [
-      { key: '/operations/campaigns', label: '活动管理', icon: Megaphone },
-      { key: '/operations/reports', label: '数据报表', icon: BarChart3 },
+      { key: '/operations/campaigns', labelKey: 'layout.campaigns', icon: Megaphone },
+      { key: '/operations/reports',   labelKey: 'layout.reports',   icon: BarChart3 },
     ],
   },
 ];
 
-function MenuItem({ item, defaultOpen = false }: MenuItemProps) {
+const LANGUAGES = [
+  { code: 'zh-CN', labelKey: 'lang.zhCN', short: '中' },
+  { code: 'en',    labelKey: 'lang.en',   short: 'EN' },
+  { code: 'zh-TW', labelKey: 'lang.zhTW', short: '繁' },
+] as const;
+
+/** 侧边栏菜单分组（默认展开，点击可折叠） */
+function SidebarGroup({ group }: { group: NavGroup }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [open, setOpen] = useState(defaultOpen || location.pathname.startsWith(`/${item.key}`));
-  const Icon = item.icon;
+  const { t } = useTranslation();
+  const GroupIcon = group.icon;
 
-  const isChildActive = item.children?.some(c => location.pathname.startsWith(c.key));
+  const hasActive = group.children.some(
+    c => location.pathname === c.key || location.pathname.startsWith(c.key + '/'),
+  );
+  const [open, setOpen] = useState(() =>
+    location.pathname.startsWith(`/${group.key}`),
+  );
 
   return (
     <div>
+      {/* 分组标题行 */}
       <button
         onClick={() => setOpen(o => !o)}
         className={cn(
-          'w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors',
-          isChildActive
-            ? 'text-sidebar-foreground font-medium'
-            : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30'
+          'w-full flex items-center justify-between px-3 py-1.5 rounded-lg text-xs font-medium uppercase tracking-wider transition-colors select-none',
+          hasActive
+            ? 'text-sidebar-foreground/90'
+            : 'text-sidebar-foreground/40 hover:text-sidebar-foreground/70',
         )}
       >
-        <span className="flex items-center gap-2.5">
-          <Icon size={16} />
-          {item.label}
+        <span className="flex items-center gap-2">
+          <GroupIcon size={13} />
+          {t(group.labelKey)}
         </span>
-        {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+        <ChevronDown
+          size={12}
+          className={cn('transition-transform duration-200', open ? 'rotate-0' : '-rotate-90')}
+        />
       </button>
+
+      {/* 子项 */}
       {open && (
-        <div className="ml-4 mt-0.5 space-y-0.5 border-l border-sidebar-border pl-3">
-          {item.children.map(child => {
+        <div className="mt-0.5 mb-1 space-y-px">
+          {group.children.map(child => {
             const ChildIcon = child.icon;
-            const active = location.pathname === child.key || location.pathname.startsWith(child.key + '/');
+            const active =
+              location.pathname === child.key ||
+              location.pathname.startsWith(child.key + '/');
             return (
               <button
                 key={child.key}
                 onClick={() => navigate(child.key)}
                 className={cn(
-                  'w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors',
+                  'w-full flex items-center gap-2.5 pl-7 pr-3 py-1.5 rounded-lg text-sm transition-colors',
                   active
-                    ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                    : 'text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30'
+                    ? 'bg-white/10 text-sidebar-foreground font-medium'
+                    : 'text-sidebar-foreground/50 hover:text-sidebar-foreground/90 hover:bg-white/5',
                 )}
               >
-                <ChildIcon size={14} />
-                {child.label}
+                <ChildIcon size={14} className={active ? 'opacity-100' : 'opacity-60'} />
+                {t(child.labelKey)}
+                {active && (
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-sidebar-foreground/70 shrink-0" />
+                )}
               </button>
             );
           })}
@@ -144,64 +164,171 @@ function MenuItem({ item, defaultOpen = false }: MenuItemProps) {
   );
 }
 
+/** 用户头像（取用户名首字母） */
+function Avatar({ name }: { name: string }) {
+  const initials = name.slice(0, 1).toUpperCase();
+  return (
+    <span className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-xs font-semibold text-sidebar-foreground shrink-0 select-none">
+      {initials}
+    </span>
+  );
+}
+
+/** 语言切换下拉（简单弹出层） */
+function LangSwitcher() {
+  const { t, i18n } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  function handleChange(code: string) {
+    i18n.changeLanguage(code);
+    localStorage.setItem('admin-language', code);
+    globalActions.setGlobalState({ language: code });
+    setOpen(false);
+  }
+
+  const current = LANGUAGES.find(l => l.code === i18n.language) ?? LANGUAGES[0];
+
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+      >
+        <Globe size={14} />
+        <span>{current.short}</span>
+        <ChevronDown size={11} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+      {open && (
+        <>
+          {/* 背景遮罩，点击关闭 */}
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 w-36 bg-popover border border-border rounded-lg shadow-md py-1 text-sm">
+            {LANGUAGES.map(lang => (
+              <button
+                key={lang.code}
+                onClick={() => handleChange(lang.code)}
+                className={cn(
+                  'w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted transition-colors',
+                  i18n.language === lang.code
+                    ? 'text-foreground font-medium'
+                    : 'text-muted-foreground',
+                )}
+              >
+                <span className="w-5 text-center text-xs font-semibold">{lang.short}</span>
+                {t(lang.labelKey)}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function Layout({ children }: LayoutProps) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useTranslation();
 
   async function handleLogout() {
     await logout();
     navigate('/login');
   }
 
-  // 当前激活的一级菜单 key
-  const activeGroup = menuConfig.find(m => location.pathname.startsWith(`/${m.key}`))?.key;
+  // 面包屑
+  const currentGroup = menuConfig.find(m => location.pathname.startsWith(`/${m.key}`));
+  const currentChild = currentGroup?.children.find(
+    c => location.pathname === c.key || location.pathname.startsWith(c.key + '/'),
+  );
 
   return (
     <div className="flex h-screen bg-background">
-      {/* 侧边栏 */}
-      <aside className="w-60 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border shrink-0">
+
+      {/* ── 侧边栏 ─────────────────────────────────── */}
+      <aside className="w-56 bg-sidebar flex flex-col shrink-0">
+
         {/* Logo */}
-        <div className="h-14 flex items-center px-5 border-b border-sidebar-border">
-          <span className="text-sm font-semibold tracking-wide">后台管理平台</span>
+        <div className="h-12 flex items-center gap-2.5 px-4 shrink-0">
+          <div className="w-6 h-6 rounded-md bg-white/20 flex items-center justify-center shrink-0">
+            <LayoutDashboard size={13} className="text-sidebar-foreground" />
+          </div>
+          <span className="text-sm font-semibold text-sidebar-foreground tracking-tight truncate">
+            {t('layout.title')}
+          </span>
         </div>
 
-        {/* 菜单 */}
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          {menuConfig.map(item => (
-            <MenuItem
-              key={item.key}
-              item={item}
-              defaultOpen={item.key === activeGroup}
-            />
+        {/* 导航 */}
+        <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+          {menuConfig.map(group => (
+            <SidebarGroup key={group.key} group={group} />
           ))}
         </nav>
 
-        {/* 用户信息 */}
-        <div className="p-3 border-t border-sidebar-border">
-          <div className="px-3 py-1 mb-1">
-            <p className="text-xs font-medium text-sidebar-foreground">{user?.username}</p>
-            <p className="text-xs text-sidebar-foreground/50">{user?.roleLabel}</p>
+        {/* 用户区 */}
+        <div className="px-2 py-2 border-t border-sidebar-border shrink-0">
+          <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-white/5 group cursor-default transition-colors">
+            <Avatar name={user?.username ?? '?'} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-sidebar-foreground truncate leading-snug">
+                {user?.username}
+              </p>
+              <p className="text-[11px] text-sidebar-foreground/45 truncate leading-snug">
+                {user?.roleLabel}
+              </p>
+            </div>
+            <button
+              onClick={handleLogout}
+              title={t('layout.logout')}
+              className="p-1 rounded-md text-sidebar-foreground/40 hover:text-sidebar-foreground hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all"
+            >
+              <LogOut size={13} />
+            </button>
           </div>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full justify-start gap-2 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent/30"
-          >
-            <LogOut size={14} />
-            退出登录
-          </Button>
         </div>
       </aside>
 
-      {/* 子应用容器 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* ── 右侧主区域 ─────────────────────────────── */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+
         {/* 顶部栏 */}
-        <header className="h-14 border-b border-border bg-card flex items-center px-6 shrink-0">
-          <span className="text-sm text-muted-foreground">
-            {menuConfig.flatMap(m => m.children).find(c => location.pathname.startsWith(c.key))?.label ?? '后台管理平台'}
-          </span>
+        <header className="h-12 border-b border-border bg-card flex items-center justify-between px-5 shrink-0">
+
+          {/* 面包屑 */}
+          <nav className="flex items-center gap-1 text-sm min-w-0">
+            <button
+              onClick={() => navigate('/basic/dashboard')}
+              className="text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+            >
+              {t('layout.title')}
+            </button>
+
+            {currentGroup && (
+              <>
+                <ChevronRight size={13} className="text-border shrink-0" />
+                <button
+                  onClick={() => navigate(currentGroup.children[0].key)}
+                  className="text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+                >
+                  {t(currentGroup.labelKey)}
+                </button>
+              </>
+            )}
+
+            {currentChild && (
+              <>
+                <ChevronRight size={13} className="text-border shrink-0" />
+                <span className="text-foreground font-medium truncate">
+                  {t(currentChild.labelKey)}
+                </span>
+              </>
+            )}
+          </nav>
+
+          {/* 右侧操作区 */}
+          <div className="flex items-center gap-1 shrink-0">
+            <LangSwitcher />
+          </div>
         </header>
 
         {/* 子应用挂载区 */}

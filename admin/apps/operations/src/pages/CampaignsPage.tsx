@@ -1,15 +1,17 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
 
 export default function CampaignsPage() {
+  const { t } = useTranslation();
   return (
     <div className="p-8">
-      <h1 className="text-xl font-semibold mb-6">活动管理</h1>
+      <h1 className="text-xl font-semibold mb-6">{t('pages.campaigns')}</h1>
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">活动管理</CardTitle>
+          <CardTitle className="text-base">{t('pages.campaigns')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground text-sm">活动管理模块开发中，敬请期待...</p>
+          <p className="text-muted-foreground text-sm">{t('pages.wip', { name: t('pages.campaigns') })}</p>
         </CardContent>
       </Card>
     </div>

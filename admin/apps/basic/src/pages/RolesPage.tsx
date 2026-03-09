@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { rolesApi } from '@/api/index.ts';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
@@ -14,19 +15,20 @@ import {
 } from '@/components/ui/dialog.tsx';
 import type { Role } from '@/types/index.ts';
 
-const allPermissions = [
-  { key: 'users:read', label: '查看用户' },
-  { key: 'users:write', label: '管理用户' },
-  { key: 'roles:read', label: '查看角色' },
-  { key: 'roles:write', label: '管理角色' },
-];
-
 export default function RolesPage() {
+  const { t } = useTranslation();
   const [roles, setRoles] = useState<Role[]>([]);
   const [modal, setModal] = useState<string | null>(null);
   const [selected, setSelected] = useState<Role | null>(null);
   const [form, setForm] = useState<{ name: string; label: string; permissions: string[] }>({ name: '', label: '', permissions: [] });
   const [error, setError] = useState('');
+
+  const allPermissions = [
+    { key: 'users:read',  label: t('roles.viewUsers') },
+    { key: 'users:write', label: t('roles.manageUsers') },
+    { key: 'roles:read',  label: t('roles.viewRoles') },
+    { key: 'roles:write', label: t('roles.manageRoles') },
+  ];
 
   function fetchRoles() { rolesApi.list().then(r => setRoles(r.data)); }
   useEffect(() => { fetchRoles(); }, []);
@@ -54,28 +56,28 @@ export default function RolesPage() {
     try {
       await rolesApi.create(form);
       setModal(null); fetchRoles();
-    } catch (e) { setError((e as Error).message || '操作失败'); }
+    } catch (e) { setError((e as Error).message || t('roles.failed')); }
   }
 
   async function handleEdit() {
     try {
       await rolesApi.update(selected!.id, { label: form.label, permissions: form.permissions });
       setModal(null); fetchRoles();
-    } catch (e) { setError((e as Error).message || '操作失败'); }
+    } catch (e) { setError((e as Error).message || t('roles.failed')); }
   }
 
   async function handleDelete(r: Role) {
-    if (!confirm(`确认删除角色「${r.label}」？`)) return;
+    if (!confirm(t('roles.confirmDelete', { label: r.label }))) return;
     try {
       await rolesApi.delete(r.id);
       fetchRoles();
-    } catch (e) { alert((e as Error).message || '删除失败'); }
+    } catch (e) { alert((e as Error).message || t('roles.deleteFailed')); }
   }
 
   function PermissionCheckboxes() {
     return (
       <div className="space-y-2">
-        <Label>权限分配</Label>
+        <Label>{t('roles.permAssign')}</Label>
         <div className="space-y-2 pl-1">
           {allPermissions.map(p => (
             <label key={p.key} className="flex items-center gap-2 cursor-pointer text-sm">
@@ -97,9 +99,9 @@ export default function RolesPage() {
   return (
     <div className="p-8 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold">角色权限</h1>
+        <h1 className="text-xl font-semibold">{t('roles.title')}</h1>
         <Button onClick={openCreate} size="sm">
-          <Plus size={15} />新增角色
+          <Plus size={15} />{t('roles.addRole')}
         </Button>
       </div>
 
@@ -107,11 +109,11 @@ export default function RolesPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>角色名</TableHead>
-              <TableHead>标签</TableHead>
-              <TableHead>权限</TableHead>
-              <TableHead>创建时间</TableHead>
-              <TableHead className="text-right">操作</TableHead>
+              <TableHead>{t('roles.roleName')}</TableHead>
+              <TableHead>{t('roles.label')}</TableHead>
+              <TableHead>{t('roles.permissions')}</TableHead>
+              <TableHead>{t('roles.createdAt')}</TableHead>
+              <TableHead className="text-right">{t('roles.actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -125,7 +127,7 @@ export default function RolesPage() {
                   <TableCell>
                     <div className="flex flex-wrap gap-1">
                       {perms.includes('*') ? (
-                        <Badge>全部权限</Badge>
+                        <Badge>{t('roles.allPermissions')}</Badge>
                       ) : perms.map(p => (
                         <Badge key={p} variant="secondary">{p}</Badge>
                       ))}
@@ -152,19 +154,19 @@ export default function RolesPage() {
       {/* 新增弹窗 */}
       <Dialog open={modal === 'create'} onOpenChange={(v) => !v && setModal(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>新增角色</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('roles.addTitle')}</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="space-y-1.5">
-              <Label>角色标识（英文）</Label>
-              <Input placeholder="如: manager" value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
+              <Label>{t('roles.roleKey')}</Label>
+              <Input placeholder={t('roles.roleKeyPlaceholder')} value={form.name} onChange={e => setForm({...form, name: e.target.value})} />
             </div>
             <div className="space-y-1.5">
-              <Label>角色标签</Label>
-              <Input placeholder="如: 经理" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
+              <Label>{t('roles.roleLabel')}</Label>
+              <Input placeholder={t('roles.roleLabelPlaceholder')} value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
             </div>
             <PermissionCheckboxes />
             {error && <p className="text-destructive text-xs">{error}</p>}
-            <Button onClick={handleCreate} className="w-full">确认创建</Button>
+            <Button onClick={handleCreate} className="w-full">{t('roles.confirmCreate')}</Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -172,15 +174,15 @@ export default function RolesPage() {
       {/* 编辑弹窗 */}
       <Dialog open={modal === 'edit'} onOpenChange={(v) => !v && setModal(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>编辑角色：{selected?.name}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{t('roles.editTitle', { name: selected?.name })}</DialogTitle></DialogHeader>
           <div className="space-y-3 mt-2">
             <div className="space-y-1.5">
-              <Label>角色标签</Label>
-              <Input placeholder="标签" value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
+              <Label>{t('roles.roleLabel')}</Label>
+              <Input placeholder={t('roles.roleLabel')} value={form.label} onChange={e => setForm({...form, label: e.target.value})} />
             </div>
             <PermissionCheckboxes />
             {error && <p className="text-destructive text-xs">{error}</p>}
-            <Button onClick={handleEdit} className="w-full">保存修改</Button>
+            <Button onClick={handleEdit} className="w-full">{t('roles.saveChanges')}</Button>
           </div>
         </DialogContent>
       </Dialog>
