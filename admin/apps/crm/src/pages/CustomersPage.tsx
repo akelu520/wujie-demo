@@ -277,7 +277,7 @@ export default function CustomersPage() {
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-hoverable className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('customers.total')}       value={stats.total} />
         <StatCard label={t('customers.newMonth')}    value={stats.newMonth}  valueClass="text-primary" />
         <StatCard label={t('customers.activeCount')} value={stats.active}    valueClass="text-emerald-600" />

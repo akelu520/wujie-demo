@@ -73,7 +73,7 @@ export default function MarketPage() {
       </div>
 
       {/* 涨跌统计 */}
-      <div className="grid grid-cols-3 gap-4">
+      <div data-hoverable className="grid grid-cols-3 gap-4">
         <StatCard
           label={t('market.rising')}
           value={String(rising)}

@@ -128,7 +128,7 @@ export default function DashboardPage() {
       </div>
 
       {/* 统计卡片 */}
-      <div className="grid grid-cols-4 gap-4">
+      <div data-hoverable className="grid grid-cols-4 gap-4">
         {STAT_CONFIGS.map((cfg, i) => (
           <StatCard
             key={cfg.statKey}

@@ -297,7 +297,7 @@ export default function ReportsPage() {
       </div>
 
       {/* 指标卡片 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-hoverable className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <MetricCard accentIdx={0} label={t('reports.newUsers')} value={current.newUsers} prev={prev.newUsers}          />
         <MetricCard accentIdx={1} label={t('reports.orders')}   value={current.orders}   prev={prev.orders}            />
         <MetricCard accentIdx={2} label={t('reports.revenue')}  value={current.revenue}  prev={prev.revenue}  unit="万" />

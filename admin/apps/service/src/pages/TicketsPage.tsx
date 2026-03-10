@@ -225,7 +225,7 @@ export default function TicketsPage() {
       </div>
 
       {/* 统计 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-hoverable className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label={t('tickets.total')}         value={stats.total} icon={<Inbox size={14} className="text-muted-foreground" />} />
         <StatCard label={t('tickets.open')}          value={stats.open}          valueClass={stats.open > 0 ? 'text-red-500' : ''} icon={<AlertTriangle size={14} className={stats.open > 0 ? 'text-red-500' : 'text-muted-foreground'} />} />
         <StatCard label={t('tickets.processing')}    value={stats.processing}    valueClass="text-orange-500" icon={<Clock size={14} className="text-orange-500" />} />

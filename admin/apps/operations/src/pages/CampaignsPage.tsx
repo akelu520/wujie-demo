@@ -230,7 +230,7 @@ export default function CampaignsPage() {
       </div>
 
       {/* 统计 */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div data-hoverable className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-1.5"><Play size={13} className="text-emerald-500" /><p className="text-xs text-muted-foreground">{t('campaigns.activeCount')}</p></div>
