@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TrendingUp, TrendingDown, Minus, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button.tsx';
@@ -34,6 +34,24 @@ interface DayPoint {
   orders: number;
   revenue: number;
 }
+
+// ── Colors ─────────────────────────────────────────────────────────────────────
+
+const CHANNEL_COLORS: Record<string, { bar: string; dot: string; text: string; bg: string }> = {
+  direct:   { bar: 'bg-blue-500',    dot: 'bg-blue-500',    text: 'text-blue-600',   bg: 'bg-blue-500/10'   },
+  organic:  { bar: 'bg-emerald-500', dot: 'bg-emerald-500', text: 'text-emerald-600',bg: 'bg-emerald-500/10'},
+  paid:     { bar: 'bg-orange-500',  dot: 'bg-orange-500',  text: 'text-orange-600', bg: 'bg-orange-500/10' },
+  referral: { bar: 'bg-violet-500',  dot: 'bg-violet-500',  text: 'text-violet-600', bg: 'bg-violet-500/10' },
+  social:   { bar: 'bg-pink-500',    dot: 'bg-pink-500',    text: 'text-pink-600',   bg: 'bg-pink-500/10'   },
+};
+
+type TrendMetric = 'users' | 'orders' | 'revenue';
+
+const METRIC_COLORS: Record<TrendMetric, { bar: string; hover: string; label: string; accent: string }> = {
+  users:   { bar: 'bg-blue-400',    hover: 'group-hover:bg-blue-500',    label: 'text-blue-600',   accent: 'bg-blue-500'    },
+  orders:  { bar: 'bg-violet-400',  hover: 'group-hover:bg-violet-500',  label: 'text-violet-600', accent: 'bg-violet-500'  },
+  revenue: { bar: 'bg-emerald-400', hover: 'group-hover:bg-emerald-500', label: 'text-emerald-600',accent: 'bg-emerald-500' },
+};
 
 // ── Mock Data ──────────────────────────────────────────────────────────────────
 
@@ -87,7 +105,6 @@ const CHANNELS: Record<Period, ChannelRow[]> = {
   ],
 };
 
-// 趋势数据（最近 7 个数据点）
 const TREND_POINTS: Record<Period, DayPoint[]> = {
   today: [
     { label: '00:00', users: 12,  orders: 3,  revenue: 0.2 },
@@ -134,41 +151,47 @@ function fmt(n: number) {
 
 // ── MetricCard ─────────────────────────────────────────────────────────────────
 
-function MetricCard({ label, value, prev, unit = '' }: {
-  label: string; value: number; prev: number; unit?: string;
+const METRIC_CARD_ACCENT = ['border-l-blue-500', 'border-l-violet-500', 'border-l-emerald-500', 'border-l-amber-500'];
+
+function MetricCard({ label, value, prev, unit = '', accentIdx = 0 }: {
+  label: string; value: number; prev: number; unit?: string; accentIdx?: number;
 }) {
   const delta = pctChange(value, prev);
   const up    = delta > 0;
   const flat  = Math.abs(delta) < 0.1;
   return (
-    <Card>
+    <Card className={cn('border-l-4', METRIC_CARD_ACCENT[accentIdx])}>
       <CardContent className="p-5">
         <p className="text-xs text-muted-foreground mb-1.5">{label}</p>
-        <p className="text-2xl font-bold tabular-nums">{typeof value === 'number' && unit === '%' ? value.toFixed(1) + '%' : unit === '万' ? value.toFixed(1) + '万' : fmt(value)}</p>
+        <p className="text-2xl font-bold tabular-nums">
+          {unit === '%' ? value.toFixed(1) + '%' : unit === '万' ? value.toFixed(1) + '万' : fmt(value)}
+        </p>
         <div className={cn('flex items-center gap-1 mt-1.5 text-xs font-medium',
           flat ? 'text-muted-foreground' : up ? 'text-emerald-600' : 'text-red-500')}>
           {flat ? <Minus size={11} /> : up ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
           <span>{flat ? '持平' : `${up ? '+' : ''}${delta.toFixed(1)}%`}</span>
+          <span className="text-muted-foreground font-normal">vs 上期</span>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// ── TrendChart (CSS bar chart) ──────────────────────────────────────────────────
+// ── TrendChart ──────────────────────────────────────────────────────────────────
 
-function TrendChart({ points, metric }: { points: DayPoint[]; metric: 'users' | 'orders' | 'revenue' }) {
+function TrendChart({ points, metric }: { points: DayPoint[]; metric: TrendMetric }) {
+  const col    = METRIC_COLORS[metric];
   const values = points.map(p => p[metric]);
   const max    = Math.max(...values, 1);
   return (
-    <div className="flex items-end gap-1.5 h-24">
+    <div className="flex items-end gap-1.5 h-28">
       {points.map((p, i) => {
         const pct = (p[metric] / max) * 100;
         return (
           <div key={i} className="flex-1 flex flex-col items-center gap-1 group">
-            <div className="w-full relative flex items-end" style={{ height: '80px' }}>
+            <div className="w-full relative flex items-end" style={{ height: '88px' }}>
               <div
-                className="w-full rounded-t bg-primary/60 group-hover:bg-primary transition-all"
+                className={cn('w-full rounded-t transition-all opacity-80 group-hover:opacity-100', col.bar, col.hover)}
                 style={{ height: `${Math.max(4, pct)}%` }}
                 title={`${p.label}: ${p[metric]}`}
               />
@@ -181,22 +204,52 @@ function TrendChart({ points, metric }: { points: DayPoint[]; metric: 'users' | 
   );
 }
 
-// ── ShareBar ───────────────────────────────────────────────────────────────────
+// ── DonutChart (SVG 饼图) ───────────────────────────────────────────────────────
 
-function ShareBar({ value }: { value: number }) {
+function DonutChart({ channels }: { channels: ChannelRow[] }) {
+  const total  = channels.reduce((s, c) => s + c.share, 0);
+  const radius = 36;
+  const cx     = 50;
+  const cy     = 50;
+  const circumference = 2 * Math.PI * radius;
+
+  let offset = 0;
+  const slices = channels.map(ch => {
+    const pct   = ch.share / total;
+    const dash  = pct * circumference;
+    const gap   = circumference - dash;
+    const slice = { channel: ch.channel, dash, gap, offset };
+    offset += dash;
+    return slice;
+  });
+
+  // rotate so first slice starts at top (-90°)
+  const strokeColors: Record<string, string> = {
+    direct:   '#3b82f6',
+    organic:  '#10b981',
+    paid:     '#f97316',
+    referral: '#8b5cf6',
+    social:   '#ec4899',
+  };
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
-        <div className="h-full bg-primary/60 rounded-full" style={{ width: `${value}%` }} />
-      </div>
-      <span className="text-xs tabular-nums">{value}%</span>
-    </div>
+    <svg viewBox="0 0 100 100" className="w-28 h-28 -rotate-90">
+      {slices.map(s => (
+        <circle
+          key={s.channel}
+          cx={cx} cy={cy} r={radius}
+          fill="none"
+          stroke={strokeColors[s.channel] ?? '#94a3b8'}
+          strokeWidth="20"
+          strokeDasharray={`${s.dash} ${s.gap}`}
+          strokeDashoffset={-s.offset}
+        />
+      ))}
+    </svg>
   );
 }
 
 // ── Page ───────────────────────────────────────────────────────────────────────
-
-type TrendMetric = 'users' | 'orders' | 'revenue';
 
 export default function ReportsPage() {
   const { t } = useTranslation();
@@ -230,12 +283,9 @@ export default function ReportsPage() {
         <div className="flex items-center gap-2">
           <div className="flex gap-1">
             {PERIODS.map(p => (
-              <Button
-                key={p.key}
-                size="sm"
+              <Button key={p.key} size="sm"
                 variant={period === p.key ? 'default' : 'outline'}
-                onClick={() => setPeriod(p.key)}
-              >
+                onClick={() => setPeriod(p.key)}>
                 {p.label}
               </Button>
             ))}
@@ -248,13 +298,13 @@ export default function ReportsPage() {
 
       {/* 指标卡片 */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard label={t('reports.newUsers')} value={current.newUsers} prev={prev.newUsers}          />
-        <MetricCard label={t('reports.orders')}   value={current.orders}   prev={prev.orders}            />
-        <MetricCard label={t('reports.revenue')}  value={current.revenue}  prev={prev.revenue}  unit="万" />
-        <MetricCard label={t('reports.convRate')} value={current.convRate} prev={prev.convRate} unit="%"  />
+        <MetricCard accentIdx={0} label={t('reports.newUsers')} value={current.newUsers} prev={prev.newUsers}          />
+        <MetricCard accentIdx={1} label={t('reports.orders')}   value={current.orders}   prev={prev.orders}            />
+        <MetricCard accentIdx={2} label={t('reports.revenue')}  value={current.revenue}  prev={prev.revenue}  unit="万" />
+        <MetricCard accentIdx={3} label={t('reports.convRate')} value={current.convRate} prev={prev.convRate} unit="%"  />
       </div>
 
-      {/* 趋势图 + 渠道表 */}
+      {/* 趋势图 + 渠道分布 */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
         {/* 趋势走势 */}
@@ -264,12 +314,14 @@ export default function ReportsPage() {
               <CardTitle className="text-sm">{t('reports.trendTitle')}</CardTitle>
               <div className="flex gap-1">
                 {METRICS.map(m => (
-                  <Button
-                    key={m.key}
-                    size="xs"
+                  <Button key={m.key} size="xs"
                     variant={trendMetric === m.key ? 'default' : 'ghost'}
-                    onClick={() => setTrendMetric(m.key)}
-                  >
+                    className={trendMetric === m.key ? cn(
+                      m.key === 'users'   && 'bg-blue-500 hover:bg-blue-600 border-blue-500 text-white',
+                      m.key === 'orders'  && 'bg-violet-500 hover:bg-violet-600 border-violet-500 text-white',
+                      m.key === 'revenue' && 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white',
+                    ) : ''}
+                    onClick={() => setTrendMetric(m.key)}>
                     {m.label}
                   </Button>
                 ))}
@@ -281,20 +333,29 @@ export default function ReportsPage() {
           </CardContent>
         </Card>
 
-        {/* 渠道分布小卡片 */}
+        {/* 渠道占比：饼图 + 图例 */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">{t('reports.channelBreakdown')}</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2.5">
-            {channels.map(ch => (
-              <div key={ch.channel} className="flex items-center justify-between gap-3">
-                <span className="text-xs text-muted-foreground whitespace-nowrap w-20 shrink-0">{t(`reports.${ch.channel}`)}</span>
-                <div className="flex-1">
-                  <ShareBar value={ch.share} />
-                </div>
+          <CardContent>
+            <div className="flex items-center gap-4">
+              <div className="shrink-0">
+                <DonutChart channels={channels} />
               </div>
-            ))}
+              <div className="flex-1 space-y-2">
+                {channels.map(ch => {
+                  const col = CHANNEL_COLORS[ch.channel] ?? CHANNEL_COLORS.direct;
+                  return (
+                    <div key={ch.channel} className="flex items-center gap-2">
+                      <span className={cn('w-2.5 h-2.5 rounded-sm shrink-0', col.dot)} />
+                      <span className="text-xs text-muted-foreground flex-1 truncate">{t(`reports.${ch.channel}`)}</span>
+                      <span className={cn('text-xs font-semibold tabular-nums', col.text)}>{ch.share}%</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -316,23 +377,31 @@ export default function ReportsPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {channels.map(ch => (
-              <TableRow key={ch.channel}>
-                <TableCell className="font-medium">{t(`reports.${ch.channel}`)}</TableCell>
-                <TableCell className="text-right tabular-nums text-sm">{ch.visits.toLocaleString()}</TableCell>
-                <TableCell className="text-right tabular-nums text-sm">{ch.orders.toLocaleString()}</TableCell>
-                <TableCell className="text-right tabular-nums text-sm">{ch.convRate.toFixed(1)}%</TableCell>
-                <TableCell className="text-right tabular-nums text-sm font-medium">{ch.revenue.toFixed(1)}万</TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div className="h-full bg-primary/60 rounded-full" style={{ width: `${ch.share}%` }} />
+            {channels.map(ch => {
+              const col = CHANNEL_COLORS[ch.channel] ?? CHANNEL_COLORS.direct;
+              return (
+                <TableRow key={ch.channel}>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className={cn('w-2 h-2 rounded-full shrink-0', col.dot)} />
+                      <span className="font-medium">{t(`reports.${ch.channel}`)}</span>
                     </div>
-                    <span className="text-xs text-muted-foreground tabular-nums">{ch.share}%</span>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-sm">{ch.visits.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums text-sm">{ch.orders.toLocaleString()}</TableCell>
+                  <TableCell className="text-right tabular-nums text-sm">{ch.convRate.toFixed(1)}%</TableCell>
+                  <TableCell className="text-right tabular-nums text-sm font-medium">{ch.revenue.toFixed(1)}万</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className={cn('h-full rounded-full', col.bar)} style={{ width: `${ch.share}%` }} />
+                      </div>
+                      <span className="text-xs tabular-nums text-muted-foreground">{ch.share}%</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </Card>
