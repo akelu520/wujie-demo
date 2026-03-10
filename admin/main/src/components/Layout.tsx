@@ -6,6 +6,7 @@ import {
   Headphones, BarChart3, ChevronRight,
   LineChart, BookOpen, Image, UserSearch, TicketIcon, Megaphone, Globe,
   ChevronDown, Bell, Settings, HelpCircle, Search, PanelLeftOpen, PanelLeftClose,
+  X,
 } from 'lucide-react';
 import { useAuth } from '@/store/auth.tsx';
 import { globalActions } from '@/App.tsx';
@@ -16,6 +17,11 @@ interface NavChild {
   key: string;
   labelKey: string;
   icon: React.ComponentType<{ size?: number; className?: string }>;
+}
+
+interface Tab {
+  key: string;
+  labelKey: string;
 }
 
 interface NavGroup {
@@ -166,15 +172,14 @@ function PrimaryUtilItem({
 }
 
 /** 二级导航项 */
-function SecondaryNavItem({ child }: { child: NavChild }) {
-  const navigate = useNavigate();
+function SecondaryNavItem({ child, onNavigate }: { child: NavChild; onNavigate: (child: NavChild) => void }) {
   const location = useLocation();
   const { t } = useTranslation();
   const Icon = child.icon;
   const active = location.pathname === child.key || location.pathname.startsWith(child.key + '/');
   return (
     <button
-      onClick={() => navigate(child.key)}
+      onClick={() => onNavigate(child)}
       className={cn(
         'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer',
         active
@@ -263,6 +268,64 @@ export default function Layout({ children }: LayoutProps) {
   const [showSearch, setShowSearch] = useState(false);
   const secondaryRef = useRef<HTMLElement>(null);
   const SECONDARY_WIDTH = 192; // w-48 = 12rem
+
+  // ── 标签页状态（sessionStorage 持久化，刷新不丢失） ──────────────────────
+  const TABS_KEY = 'admin-tabs';
+
+  const [tabs, setTabsState] = useState<Tab[]>(() => {
+    try {
+      const saved = sessionStorage.getItem(TABS_KEY);
+      return saved ? (JSON.parse(saved) as Tab[]) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [activeTab, setActiveTab] = useState<string>('');
+
+  function setTabs(updater: Tab[] | ((prev: Tab[]) => Tab[])) {
+    setTabsState(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      try { sessionStorage.setItem(TABS_KEY, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  }
+
+  // 同步 location → 标签页（面包屑/直接导航时补充 tab）
+  useEffect(() => {
+    const allChildren = menuConfig.flatMap(g => g.children);
+    const child = allChildren.find(
+      c => location.pathname === c.key || location.pathname.startsWith(c.key + '/'),
+    );
+    if (child) {
+      setActiveTab(child.key);
+      setTabs(prev =>
+        prev.find(t => t.key === child.key)
+          ? prev
+          : [...prev, { key: child.key, labelKey: child.labelKey }],
+      );
+    }
+  }, [location.pathname]);
+
+  function openTab(child: NavChild) {
+    navigate(child.key);
+    // useEffect above handles setTabs + setActiveTab
+  }
+
+  function closeTab(key: string) {
+    const idx = tabs.findIndex(t => t.key === key);
+    const next = tabs.filter(t => t.key !== key);
+    setTabs(next);
+    if (activeTab === key) {
+      const fallback = next[Math.min(idx, next.length - 1)];
+      if (fallback) {
+        setActiveTab(fallback.key);
+        navigate(fallback.key);
+      } else {
+        setActiveTab('');
+        navigate('/basic/dashboard');
+      }
+    }
+  }
 
   // ⌘K / Ctrl+K 打开搜索
   useEffect(() => {
@@ -431,7 +494,7 @@ export default function Layout({ children }: LayoutProps) {
         {/* 页面列表 */}
         <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-px">
           {activeGroup.children.map(child => (
-            <SecondaryNavItem key={child.key} child={child} />
+            <SecondaryNavItem key={child.key} child={child} onNavigate={openTab} />
           ))}
         </nav>
 
@@ -500,6 +563,40 @@ export default function Layout({ children }: LayoutProps) {
           </div>
         </header>
 
+        {/* 标签栏 */}
+        {tabs.length > 0 && (
+          <div className="flex items-stretch border-b border-border bg-muted/30 shrink-0 overflow-x-auto scrollbar-none">
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.key;
+              return (
+                <div
+                  key={tab.key}
+                  className={cn(
+                    'group flex items-center gap-1 pl-3 pr-1.5 py-1.5 shrink-0 text-xs cursor-pointer select-none border-r border-border/50 transition-colors',
+                    isActive
+                      ? 'bg-background text-foreground font-medium border-b-2 border-b-primary -mb-px'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
+                  )}
+                  onClick={() => { setActiveTab(tab.key); navigate(tab.key); }}
+                >
+                  <span className="max-w-[120px] truncate">{t(tab.labelKey)}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); closeTab(tab.key); }}
+                    className={cn(
+                      'w-4 h-4 rounded flex items-center justify-center shrink-0 transition-all',
+                      isActive
+                        ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        : 'opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted',
+                    )}
+                  >
+                    <X size={10} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {/* 子应用挂载区 */}
         <main className="flex-1 overflow-auto">
           {children}
@@ -522,7 +619,7 @@ export default function Layout({ children }: LayoutProps) {
           </div>
           <div className="px-2 py-1.5 space-y-px">
             {hoveredGroup.children.map(child => (
-              <SecondaryNavItem key={child.key} child={child} />
+              <SecondaryNavItem key={child.key} child={child} onNavigate={openTab} />
             ))}
           </div>
         </div>

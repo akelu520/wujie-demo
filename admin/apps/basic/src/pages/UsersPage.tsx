@@ -25,11 +25,16 @@ import type { User, Role } from '@/types/index.ts';
 
 // ── FormField ────────────────────────────────────────────────────────────────
 
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
+function FormField({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <div className="space-y-1.5">
       <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
       {children}
+      {error && (
+        <p className="flex items-center gap-1 text-[11px] text-destructive">
+          <XCircle size={10} className="shrink-0" />{error}
+        </p>
+      )}
     </div>
   );
 }
@@ -51,7 +56,7 @@ function FieldDivider({ label }: { label: string }) {
 function StatusToggle({
   value, onChange, enabledLabel, disabledLabel,
 }: {
-  value: string; onChange: (v: string) => void; enabledLabel: string; disabledLabel: string;
+  value: string; onChange: (v: 'active' | 'disabled') => void; enabledLabel: string; disabledLabel: string;
 }) {
   return (
     <div className="flex gap-1.5">
@@ -96,12 +101,13 @@ interface ModalBaseProps {
   cancelLabel: string;
   error: string;
   avatar?: string;
+  submitDisabled?: boolean;
   children: React.ReactNode;
 }
 
 function ModalBase({
   open, onClose, onSubmit, title, description, icon: Icon,
-  submitLabel, cancelLabel, error, avatar, children,
+  submitLabel, cancelLabel, error, avatar, submitDisabled, children,
 }: ModalBaseProps) {
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -135,9 +141,9 @@ function ModalBase({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {avatar && (
-                <div className="w-9 h-9 rounded-xl bg-white/12 flex items-center justify-center text-sidebar-foreground font-bold text-base ring-1 ring-white/10 select-none">
-                  {avatar.slice(0, 1).toUpperCase()}
+              {avatar !== undefined && (
+                <div className="w-9 h-9 rounded-xl bg-white/12 flex items-center justify-center text-sidebar-foreground font-bold text-base ring-1 ring-white/10 select-none transition-all duration-200">
+                  {avatar ? avatar.slice(0, 1).toUpperCase() : <span className="text-sidebar-foreground/30 font-normal text-sm">?</span>}
                 </div>
               )}
               <button
@@ -163,7 +169,7 @@ function ModalBase({
 
           <div className="flex gap-2 pt-1">
             <Button variant="outline" className="flex-1" onClick={onClose}>{cancelLabel}</Button>
-            <Button className="flex-1" onClick={onSubmit}>{submitLabel}</Button>
+            <Button className="flex-1" onClick={onSubmit} disabled={submitDisabled}>{submitLabel}</Button>
           </div>
         </div>
 
@@ -186,13 +192,41 @@ export default function UsersPage() {
   const [selected, setSelected] = useState<User | null>(null);
   const [form, setForm] = useState<Partial<{
     username: string; email: string; password: string;
-    roleId: string; status: string; newPassword: string;
+    roleId: string; status: 'active' | 'disabled'; newPassword: string;
   }>>({});
   const [error, setError] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [showNewPwd, setShowNewPwd] = useState(false);
+  const [touched, setTouched] = useState<Set<string>>(new Set());
 
   const pageSize = 10;
+
+  function touch(field: string) {
+    setTouched(prev => new Set([...prev, field]));
+  }
+
+  function validate(field: string, value: string | undefined): string {
+    switch (field) {
+      case 'username':    return !value?.trim() ? t('users.usernameRequired') : '';
+      case 'email':       if (!value?.trim()) return '';
+                          return !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value!) ? t('users.emailInvalid') : '';
+      case 'password':    if (!value?.trim()) return t('users.passwordRequired');
+                          return value!.length < 6 ? t('users.passwordTooShort') : '';
+      case 'newPassword': if (!value?.trim()) return t('users.passwordRequired');
+                          return value!.length < 6 ? t('users.passwordTooShort') : '';
+      case 'roleId':      return !value ? t('users.roleRequired') : '';
+      default:            return '';
+    }
+  }
+
+  function ferr(field: string, value: string | undefined): string {
+    return touched.has(field) ? validate(field, value) : '';
+  }
+
+  function inputCls(field: string, value: string | undefined, base = ''): string {
+    const err = ferr(field, value);
+    return cn(base, err ? 'border-destructive focus-visible:ring-destructive/20' : '');
+  }
 
   function fetchUsers() {
     setLoading(true);
@@ -205,15 +239,15 @@ export default function UsersPage() {
   useEffect(() => { fetchUsers(); }, [page, keyword]);
 
   function openCreate() {
-    setForm({ status: 'active' }); setError(''); setShowPwd(false); setModal('create');
+    setForm({ status: 'active' }); setError(''); setShowPwd(false); setTouched(new Set()); setModal('create');
   }
   function openEdit(u: User) {
     setSelected(u);
     setForm({ email: u.email, roleId: String((u as User & { roleId?: number }).roleId ?? ''), status: u.status });
-    setError(''); setModal('edit');
+    setError(''); setTouched(new Set()); setModal('edit');
   }
   function openReset(u: User) {
-    setSelected(u); setForm({ newPassword: '' }); setError(''); setShowNewPwd(false); setModal('reset');
+    setSelected(u); setForm({ newPassword: '' }); setError(''); setShowNewPwd(false); setTouched(new Set()); setModal('reset');
   }
 
   async function handleCreate() {
@@ -348,41 +382,47 @@ export default function UsersPage() {
         submitLabel={t('users.confirm')}
         cancelLabel={t('users.cancel') || '取消'}
         error={error}
-        avatar={form.username || undefined}
+        avatar={form.username ?? ''}
+        submitDisabled={!form.username?.trim() || !form.password?.trim() || (form.password?.length ?? 0) < 6 || !form.roleId}
       >
-        <FormField label={t('users.username') ?? 'Username'}>
+        <FormField label={t('users.username') ?? 'Username'} error={ferr('username', form.username)}>
           <div className="relative">
             <UserIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <Input
-              className="pl-9 h-11"
+              type="text"
+              className={inputCls('username', form.username, 'pl-9 h-11')}
               placeholder={t('users.usernamePlaceholder')}
               value={form.username || ''}
               onChange={e => setForm({ ...form, username: e.target.value })}
+              onBlur={() => touch('username')}
             />
           </div>
         </FormField>
 
-        <FormField label={t('users.email')}>
+        <FormField label={t('users.email')} error={ferr('email', form.email)}>
           <div className="relative">
             <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <Input
-              className="pl-9 h-11"
+              type="email"
+              className={inputCls('email', form.email, 'pl-9 h-11')}
               placeholder={t('users.emailPlaceholder')}
               value={form.email || ''}
               onChange={e => setForm({ ...form, email: e.target.value })}
+              onBlur={() => touch('email')}
             />
           </div>
         </FormField>
 
-        <FormField label={t('users.password') ?? 'Password'}>
+        <FormField label={t('users.password') ?? 'Password'} error={ferr('password', form.password)}>
           <div className="relative">
             <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <Input
               type={showPwd ? 'text' : 'password'}
-              className="pl-9 pr-9 h-11"
+              className={inputCls('password', form.password, 'pl-9 pr-9 h-11')}
               placeholder={t('users.passwordPlaceholder')}
               value={form.password || ''}
               onChange={e => setForm({ ...form, password: e.target.value })}
+              onBlur={() => touch('password')}
             />
             <button
               type="button"
@@ -396,11 +436,11 @@ export default function UsersPage() {
 
         <FieldDivider label={t('users.accountConfig') || '账号配置'} />
 
-        <FormField label={t('users.role')}>
+        <FormField label={t('users.role')} error={ferr('roleId', form.roleId)}>
           <div className="relative">
             <Shield size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 z-10 pointer-events-none" />
-            <Select value={form.roleId || ''} onValueChange={v => setForm({ ...form, roleId: v })}>
-              <SelectTrigger className="pl-9 h-11">
+            <Select value={form.roleId || ''} onValueChange={v => { setForm({ ...form, roleId: v }); touch('roleId'); }}>
+              <SelectTrigger className={inputCls('roleId', form.roleId, 'pl-9 h-11')}>
                 <SelectValue placeholder={t('users.selectRole')} />
               </SelectTrigger>
               <SelectContent>
@@ -432,26 +472,29 @@ export default function UsersPage() {
         cancelLabel={t('users.cancel') || '取消'}
         error={error}
         avatar={selected?.username}
+        submitDisabled={!form.roleId}
       >
-        <FormField label={t('users.email')}>
+        <FormField label={t('users.email')} error={ferr('email', form.email)}>
           <div className="relative">
             <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 pointer-events-none" />
             <Input
-              className="pl-9 h-11"
+              type="email"
+              className={inputCls('email', form.email, 'pl-9 h-11')}
               placeholder={t('users.emailPlaceholder')}
               value={form.email || ''}
               onChange={e => setForm({ ...form, email: e.target.value })}
+              onBlur={() => touch('email')}
             />
           </div>
         </FormField>
 
         <FieldDivider label={t('users.accountConfig') || '账号配置'} />
 
-        <FormField label={t('users.role')}>
+        <FormField label={t('users.role')} error={ferr('roleId', form.roleId)}>
           <div className="relative">
             <Shield size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground/50 z-10 pointer-events-none" />
-            <Select value={form.roleId || ''} onValueChange={v => setForm({ ...form, roleId: v })}>
-              <SelectTrigger className="pl-9 h-11">
+            <Select value={form.roleId || ''} onValueChange={v => { setForm({ ...form, roleId: v }); touch('roleId'); }}>
+              <SelectTrigger className={inputCls('roleId', form.roleId, 'pl-9 h-11')}>
                 <SelectValue placeholder={t('users.selectRole')} />
               </SelectTrigger>
               <SelectContent>
