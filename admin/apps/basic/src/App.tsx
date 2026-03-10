@@ -9,10 +9,9 @@ interface AppProps {
   qiankunProps?: { user?: User; language?: string; [key: string]: unknown };
 }
 
-// 在 qiankun 内运行时使用 /basic 作为 basename，独立运行时使用 /
-const basename = window.__POWERED_BY_QIANKUN__ ? '/basic' : '/';
 
 export default function App({ qiankunProps }: AppProps) {
+  const basename = (qiankunProps as any)?.container ? '/basic' : '/';
   const lang = qiankunProps?.language;
 
   useEffect(() => {

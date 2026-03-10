@@ -76,4 +76,29 @@
   body {
     @apply bg-background text-foreground font-sans;
   }
+
+  /* 自定义滚动条 */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: oklch(0.85 0 0);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: oklch(0.75 0 0);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.85 0 0) transparent;
+  }
+
+  /* 文字选中色 */
+  ::selection {
+    background: oklch(0.205 0 0 / 12%);
+  }
 }

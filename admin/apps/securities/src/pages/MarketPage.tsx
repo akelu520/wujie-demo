@@ -1,19 +1,26 @@
 import { useTranslation } from 'react-i18next';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card.tsx';
+import { TrendingUp } from 'lucide-react';
 
 export default function MarketPage() {
   const { t } = useTranslation();
   return (
-    <div className="p-8">
-      <h1 className="text-xl font-semibold mb-6">{t('pages.market')}</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">{t('pages.market')}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">{t('pages.wip', { name: t('pages.market') })}</p>
-        </CardContent>
-      </Card>
+    <div className="flex flex-col items-center justify-center min-h-[70vh] p-8 text-center">
+      <div className="w-16 h-16 rounded-2xl bg-muted/60 flex items-center justify-center mb-5">
+        <TrendingUp size={28} className="text-muted-foreground/40" />
+      </div>
+      <h1 className="text-lg font-semibold text-foreground mb-1.5">{t('pages.market')}</h1>
+      <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
+        {t('pages.wip', { name: t('pages.market') })}
+      </p>
+      <div className="flex items-center gap-1.5 mt-6">
+        {[0, 1, 2].map(i => (
+          <span
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25 animate-bounce"
+            style={{ animationDelay: `${i * 180}ms` }}
+          />
+        ))}
+      </div>
     </div>
   );
 }

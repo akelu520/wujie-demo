@@ -16,7 +16,7 @@ function render(props: RenderProps = {}) {
   if (props.language) {
     import('i18next').then(({ default: i18next }) => { i18next.changeLanguage(props.language as string); });
   }
-  const mountPoint = container ? container.querySelector('#root') : document.getElementById('root');
+  const mountPoint = container ? (container.querySelector('#root') ?? container) : document.getElementById('root');
   root = ReactDOM.createRoot(mountPoint!);
   root.render(<App qiankunProps={props} />);
 }

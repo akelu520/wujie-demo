@@ -7,9 +7,9 @@ interface AppProps {
   qiankunProps?: { language?: string; [key: string]: unknown };
 }
 
-const basename = window.__POWERED_BY_QIANKUN__ ? '/service' : '/';
 
 export default function App({ qiankunProps }: AppProps) {
+  const basename = (qiankunProps as any)?.container ? '/service' : '/';
   const lang = qiankunProps?.language;
   useEffect(() => {
     if (lang) {

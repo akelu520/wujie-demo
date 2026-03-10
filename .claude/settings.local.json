@@ -12,7 +12,17 @@
       "Bash(do)",
       "Read(//Users/lb/wujie-demo/admin/apps/**)",
       "Bash(done)",
-      "Bash(node -e \"const p = require\\(''/Users/lb/wujie-demo/admin/main/node_modules/lucide-react''\\); console.log\\(''PanelLeftOpen:'', typeof p.PanelLeftOpen, ''  PanelLeftClose:'', typeof p.PanelLeftClose\\)\")"
+      "Bash(node -e \"const p = require\\(''/Users/lb/wujie-demo/admin/main/node_modules/lucide-react''\\); console.log\\(''PanelLeftOpen:'', typeof p.PanelLeftOpen, ''  PanelLeftClose:'', typeof p.PanelLeftClose\\)\")",
+      "Bash(grep -n \"POWERED_BY_QIANKUN\\\\|basename\" /Users/lb/wujie-demo/admin/apps/*/src/App.tsx)",
+      "Bash(for app in basic cms crm operations securities service)",
+      "Bash(file=\"/Users/lb/wujie-demo/admin/apps/$app/src/App.tsx\")",
+      "Bash(echo \"=== $app ===\")",
+      "Read(//Users/lb/wujie-demo/**)",
+      "Bash(file=\"/Users/lb/wujie-demo/admin/apps/$app/src/main.tsx\")",
+      "Bash(python3 -:*)",
+      "Bash(echo \"  -> $app\")",
+      "Bash(echo \"[$app]\")",
+      "Read(//Users/lb/wujie-demo/admin/apps/$app/src/**)"
     ]
   }
 }

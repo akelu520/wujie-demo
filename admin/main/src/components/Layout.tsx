@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
@@ -10,6 +10,7 @@ import {
 import { useAuth } from '@/store/auth.tsx';
 import { globalActions } from '@/App.tsx';
 import { cn } from '@/lib/utils.ts';
+import SearchModal from '@/components/SearchModal.tsx';
 
 interface NavChild {
   key: string;
@@ -100,19 +101,25 @@ function PrimaryNavItem({
   group,
   isActive,
   onClick,
+  onMouseEnter,
+  onMouseLeave,
 }: {
   group: NavGroup;
   isActive: boolean;
   onClick: () => void;
+  onMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
+  onMouseLeave?: () => void;
 }) {
   const { t } = useTranslation();
   const Icon = group.icon;
   return (
     <button
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       title={t(group.labelKey)}
       className={cn(
-        'w-full flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl transition-all duration-150 group select-none',
+        'w-full flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl transition-all duration-150 group select-none cursor-pointer',
         isActive
           ? 'bg-white/15 text-sidebar-foreground'
           : 'text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-white/10',
@@ -148,7 +155,7 @@ function PrimaryUtilItem({
       onClick={onClick}
       title={label}
       className={cn(
-        'w-full flex flex-col items-center gap-1.5 py-2 px-1 rounded-xl text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/10 transition-all duration-150 select-none',
+        'w-full flex flex-col items-center gap-1.5 py-2 px-1 rounded-xl text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/10 transition-all duration-150 select-none cursor-pointer',
         className,
       )}
     >
@@ -169,7 +176,7 @@ function SecondaryNavItem({ child }: { child: NavChild }) {
     <button
       onClick={() => navigate(child.key)}
       className={cn(
-        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
+        'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors cursor-pointer',
         active
           ? 'bg-primary/8 text-primary font-medium'
           : 'text-muted-foreground hover:text-foreground hover:bg-muted/60',
@@ -200,7 +207,7 @@ function LangSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
       >
         <Globe size={14} />
         <span className="font-medium">{current.short}</span>
@@ -215,7 +222,7 @@ function LangSwitcher() {
                 key={lang.code}
                 onClick={() => handleChange(lang.code)}
                 className={cn(
-                  'w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted transition-colors',
+                  'w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted transition-colors cursor-pointer',
                   i18n.language === lang.code ? 'text-foreground font-medium' : 'text-muted-foreground',
                 )}
               >
@@ -231,10 +238,13 @@ function LangSwitcher() {
 }
 
 /** 搜索栏（header 中的快捷搜索按钮） */
-function SearchBar() {
+function SearchBar({ onClick }: { onClick: () => void }) {
   const { t } = useTranslation();
   return (
-    <button className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-48">
+    <button
+      onClick={onClick}
+      className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-muted/40 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors w-48 cursor-pointer"
+    >
       <Search size={13} />
       <span className="flex-1 text-left">{t('layout.search')}...</span>
       <kbd className="text-[10px] bg-background border border-border rounded px-1 font-mono">⌘K</kbd>
@@ -250,8 +260,38 @@ export default function Layout({ children }: LayoutProps) {
 
   const [showSecondary, setShowSecondary] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
   const secondaryRef = useRef<HTMLElement>(null);
   const SECONDARY_WIDTH = 192; // w-48 = 12rem
+
+  // ⌘K / Ctrl+K 打开搜索
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(s => !s);
+      }
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // 一级导航 hover → popover
+  const [hoveredGroupKey, setHoveredGroupKey] = useState<string | null>(null);
+  const [popoverY, setPopoverY] = useState(0);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoveredGroup = hoveredGroupKey ? (menuConfig.find(m => m.key === hoveredGroupKey) ?? null) : null;
+
+  function startHover(group: NavGroup, e: React.MouseEvent) {
+    if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPopoverY(rect.top);
+    setHoveredGroupKey(group.key);
+  }
+
+  function endHover() {
+    hideTimerRef.current = setTimeout(() => setHoveredGroupKey(null), 120);
+  }
 
   function handleHandleMouseDown(e: React.MouseEvent) {
     e.preventDefault();
@@ -325,7 +365,7 @@ export default function Layout({ children }: LayoutProps) {
           <button
             onClick={() => setShowSecondary(s => !s)}
             title={showSecondary ? '收起导航' : '展开导航'}
-            className="w-full flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/10 transition-all duration-150"
+            className="w-full flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-sidebar-foreground/75 hover:text-sidebar-foreground hover:bg-white/10 transition-all duration-150 cursor-pointer"
           >
             {showSecondary
               ? <PanelLeftClose size={16} />
@@ -342,6 +382,8 @@ export default function Layout({ children }: LayoutProps) {
               group={group}
               isActive={activeGroup.key === group.key}
               onClick={() => navigate(group.children[0].key)}
+              onMouseEnter={(e) => startHover(group, e)}
+              onMouseLeave={endHover}
             />
           ))}
         </nav>
@@ -356,7 +398,7 @@ export default function Layout({ children }: LayoutProps) {
           <button
             onClick={handleLogout}
             title={`${user?.username} · ${t('layout.logout')}`}
-            className="w-full flex flex-col items-center gap-1.5 py-2 px-1 rounded-xl hover:bg-white/8 transition-colors group"
+            className="w-full flex flex-col items-center gap-1.5 py-2 px-1 rounded-xl hover:bg-white/8 transition-colors group cursor-pointer"
           >
             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold text-sidebar-foreground ring-2 ring-transparent group-hover:ring-white/20 transition-all">
               {user?.username?.slice(0, 1).toUpperCase() ?? '?'}
@@ -445,13 +487,13 @@ export default function Layout({ children }: LayoutProps) {
 
           {/* 中间搜索 */}
           <div className="flex-1 flex justify-center">
-            <SearchBar />
+            <SearchBar onClick={() => setShowSearch(true)} />
           </div>
 
           {/* 右侧操作 */}
           <div className="flex items-center gap-1 shrink-0">
             {/* 通知铃铛 */}
-            <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative">
+            <button className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors relative cursor-pointer">
               <Bell size={15} />
             </button>
             <LangSwitcher />
@@ -464,6 +506,30 @@ export default function Layout({ children }: LayoutProps) {
           <div id="subapp-container" className="min-h-full" />
         </main>
       </div>
+
+      {/* ── 一级导航 hover popover（覆盖二级导航区域） ── */}
+      {hoveredGroup && (
+        <div
+          onMouseEnter={() => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); }}
+          onMouseLeave={endHover}
+          onClick={() => setHoveredGroupKey(null)}
+          style={{ top: popoverY, left: 72 }}
+          className="fixed z-50 w-48 bg-card border border-border rounded-xl shadow-xl overflow-hidden"
+        >
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-border">
+            {(() => { const Icon = hoveredGroup.icon; return <Icon size={14} className="text-muted-foreground shrink-0" />; })()}
+            <span className="text-xs font-semibold text-foreground">{t(hoveredGroup.labelKey)}</span>
+          </div>
+          <div className="px-2 py-1.5 space-y-px">
+            {hoveredGroup.children.map(child => (
+              <SecondaryNavItem key={child.key} child={child} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── 搜索弹框 ── */}
+      <SearchModal open={showSearch} onClose={() => setShowSearch(false)} />
     </div>
   );
 }
